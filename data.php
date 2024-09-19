@@ -1,18 +1,18 @@
 <?php
 header('Content-Type: application/json');
-$con=mysqli_connect("localhost","root","raspberry","weather");
+$con=mysqli_connect("localhost","pi","password","weather");
 $column_name = $_GET["col"];
 $msl = 0;
 if ($column_name == "MSL_PRESSURE"){
     $column_name = "AIR_PRESSURE";
     $msl = 1;
-    $altitude = 112.2; // metres
+    $altitude = 60; // metres
 }
 
 $time_from = $_GET["from"];
 $time_to = $_GET["to"];
 
-$select_template = "SELECT %s, UNIX_TIMESTAMP(CREATED) as UNIX_TIME FROM WEATHER_MEASUREMENT WHERE CREATED >= FROM_UNIXTIME(%s) AND CREATED <= FROM_UNIXTIME(%s);";
+$select_template = "SELECT %s, UNIX_TIMESTAMP(CREATED) as UNIX_TIME FROM SCH8_WEATHER_MEASUREMENT WHERE CREATED >= FROM_UNIXTIME(%s) AND CREATED <= FROM_UNIXTIME(%s);";
 $select_query = sprintf($select_template, $column_name, $time_from, $time_to);
 
 // Check connection

@@ -2,23 +2,64 @@
 <html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-	<title>Raspberry Pi Weather Demo</title>
+	<title>Scherer8 Wetter</title>
 	<link href="css/rpi.css" rel="stylesheet" type="text/css">
 	<!--[if lte IE 8]><script language="javascript" type="text/javascript" src="js/flot/excanvas.min.js"></script><![endif]-->
 	<script language="javascript" type="text/javascript" src="js/flot/jquery.js"></script>
 	<script language="javascript" type="text/javascript" src="js/flot/jquery.flot.js"></script>
 	<script language="javascript" type="text/javascript" src="js/flot/jquery.flot.time.js"></script>
+	<script language="javascript" type="text/javascript" src="js/date.js"></script>
 	<script language="javascript" type="text/javascript" src="js/flot/jquery.flot.navigate.js"></script>
+        <script language="javascript" type="text/javascript" src="js/flot/jquery.flot.crosshair.js"></script>
+	<script language="javascript" type="text/javascript" src="js/jquery.popupoverlay.js"></script>
+
+	<script>
+	$(document).ready(function() {
+		$("#about_weather_station").popup();
+		$("#about_htu21d").popup();
+		$("#about_ds18b20").popup();
+		$("#about_tgs2600").popup();
+		$("#about_bmp085").popup();
+		$("#about_n76nf").popup();
+		$("#about_n77nf").popup();
+		$("#about_n81nf").popup();
+//		$.fn.popup.defaults.pagecontainer = ".container";
+	});
+	</script>
+
 	<script type="text/javascript">
 	$(function(){
+		timezoneJS.timezone.zoneFileBasePath = "/tz";
+		timezoneJS.timezone.defaultZoneFile = "europe";
+		timezoneJS.timezone.init({async: false});
+
 		var time_now = Date.now();
 		flot_defaults = { 
 			xaxis: { 
 				mode: "time",
-				minTickSize: [1, "hour"],
+				minTickSize: [5, "minute"],
 				min: time_now - 86400000, //Last 24 hours
 				max: time_now,
-				twelveHourClock: true
+				twelveHourClock: false,
+				timezone: "Europe/Berlin"
+			},
+			yaxis: {
+			},
+//			crosshair: {
+//				mode: "x"
+//			},
+//			$.plot("#placeholder", [
+//					{ label: "Value 0 ", data: col }
+//					],
+//			grid: {
+//				hoverable: true,
+//				autoHighlight; false
+//			},
+			lines: { show: true },
+			points: { show: false, fill: false },
+			legend: {
+				position: "sw",
+				show: true
 			},
 			pan: {
 				interactive: true
@@ -29,23 +70,107 @@
 		};
 		
 		columns = [
-			{title: "Ambient temperature,Â°C", col: "AMBIENT_TEMPERATURE"}, 
-			{title: "Ground temperature,Â°C", col: "GROUND_TEMPERATURE"}, 
-			{title: "Air quality, %", col: "AIR_QUALITY"}, 
-			{title: "Air pressure, hPa", col: "AIR_PRESSURE"}, 
-			{title: "MSL pressure, hPa", col: "MSL_PRESSURE"}, 
-			{title: "Relative humidity, %", col: "HUMIDITY"}, 
-			{title: "Wind speed, km/h", col: "WIND_SPEED"}, 
-			{title: "Wind gust speed, km/h", col: "WIND_GUST_SPEED"},
-			{title: "Wind direction", col: "WIND_DIRECTION"}, 
-			{title: "Rainfall, mm", col: "RAINFALL"} 
-			]
+		{
+			title: "Dach Temperatur/Roof Temperature", 
+			yaxisLabel: "°C", 
+			col: "ROOF_TEMPERATURE", 
+			about: "ds18b20",
+			ymin: null
+		},
+                {
+                        title: "Schaltschrank Temperatur/Network Cabinet Temperature",
+                        yaxisLabel: "°C",
+                        col: "CABINET_TEMPERATURE",
+                        about: "ds18b20",
+                        ymin: null
+                },
+		{
+			title: "Luftqualität/Air quality", 
+			yaxisLabel: "%", 
+			col: "AIR_QUALITY", 
+			about: "tgs2600",
+			ymin: 0
+		}, 
+//		{
+//			title: "Luftdruck/Air Pressure", 
+//			yaxisLabel: "hPa", 
+//			col: "AIR_PRESSURE", 
+//			about: "bmp085",
+//			ymin: 950
+//		}, 
+		{
+			title: "Luftdruck auf Meeresniveau/Mean Sea Level Pressure", 
+			yaxisLabel: " hPa", 
+			col: "MSL_PRESSURE", 
+			about: "bmp085",
+			ymin: 950
+		}, 
+		{
+			title: "Relative Luftfeuchtigkeit/Relative Humidity", 
+			yaxisLabel: "%", 
+			col: "HUMIDITY", 
+			about: "htu21d",
+			ymin: 0
+		}, 
+		{
+			title: "Windgeschwindigkeit/Wind Speed", 
+			yaxisLabel: " km/h", 
+			col: "WIND_SPEED", 
+			about: "n76nf",
+			ymin: 0
+		}, 
+		{
+			title: "Böengeschwindigkeit/Wind Gust Speed", 
+			yaxisLabel: " km/h", 
+			col: "WIND_GUST_SPEED", 
+			about: "n76nf",
+			ymin: 0
+		},
+		{
+			title: "Windrichtung/Wind Direction", 
+			yaxisLabel: "°", 
+			col: "WIND_DIRECTION", 
+			about: "n81nf",
+			ymin: null
+		}, 
+		{
+			title: "Niederschlag/Precipitation", 
+			yaxisLabel: " mm", 
+			col: "RAINFALL", 
+			about: "n77nf",
+			ymin: 0
+		}] 
 
                 var $update_plot = function(plot, $ph, col, timeout) {
                         var axes = plot.getAxes();
                         var mysql_from = (axes.xaxis.min / 1000).toFixed(0);
                         var mysql_to = (axes.xaxis.max / 1000).toFixed(0);
-                        var WD_yaxis = {yaxis: { min:0, max: 360, tickSize: 45}};
+			var WD_yaxis = {
+				yaxis:  {
+					min:0,
+					max: 360, 
+					tickSize: 45, 
+					ticks: [ [0, "0° N"], 
+						[45, "45° NE"], 
+						[90, "90° E"], 
+						[135, "135° SE"], 
+						[180, "180° S"], 
+						[225, "225° SW"], 
+						[270, "270° W"], 
+						[315, "315° NW"], 
+						[360, "360° N"] ]
+				}, 
+				lines: { show: false },
+				points: { show: true, fill: true }
+			};
+			var generic_yaxis = {
+				yaxis: {
+					min: col.ymin,
+					tickFormatter: function(v, axis) {
+						return v.toFixed(axis.tickDecimals) + col.yaxisLabel;
+					}
+				}
+			}
 
                         var on_data_received = function(data) {
                                 var opts = $.extend({}, flot_defaults);
@@ -54,6 +179,11 @@
                                         var WD_opts = $.extend(opts, WD_yaxis);
                                         opts = WD_opts;
                                 }
+				else
+				{
+					var generic_opts = $.extend(opts, generic_yaxis);
+					opts = generic_opts;
+				}
                                 opts.xaxis.min = axes.xaxis.min;
                                 opts.xaxis.max = axes.xaxis.max;
 
@@ -70,25 +200,59 @@
 			timeout = null;
 		};
 
+		var $current = $("#current");
+		function updateCurrent() {
+			$.ajax({
+				url: "./current.php",
+				type: "GET",
+				dataType: "json",
+				success: function(data) {
+					$current.empty();
+					
+					$current.append($("<p/>").text("Wettervorhersage/Forcast: Typisches Berliner Grau/Typical Berlin Gray"));
+					$current.append($("<br/>"));
+					$current.append($("<p/>").text("Current Data (updates every 5 minutes)"));
+					$current.append($("<p/>").text(new Date(data["UNIX_TIME"])));
+
+					var $table = $("<table/>");
+					$table.attr("cellspacing","10");
+
+					$.each( columns, function(i, col) {
+						var $row = $("<tr/>");
+						$row.append($("<td/>").text(col.title));
+						$row.append($("<td/>").text((Math.round(data[col.col] * 100) / 100) + col.yaxisLabel));
+						$table.append($row);
+					});
+					$current.append($table);
+					//$("#current").append(data);
+				}
+			});
+			setTimeout(updateCurrent, 60000);
+		}
+		updateCurrent();
+
 		var $content = $("#content");
-		
 		$.each( columns, function(i, col){
+			
 			var $container = $("<div/>");
 			$container.addClass("demo-container");
 			
 			var $title = $("<p/>");
-			$title.text(col.title);
+			$title.text(col.title + " ");
+
+			var $about = $("<a />");
+			$about.attr("href", "#about_" + col.about);
+			$about.attr("class", "about_" + col.about + "_open btn btn-success");
+			$about.text("?");
+			$title.append($about)
 			
 			var $placeholder = $("<div/>");
 			$placeholder.addClass("demo-placeholder");
 			$placeholder.attr("id", col.col);
 
-			var $info = $("<div/>");
-			
 			$container.append($placeholder);
 			$content.append($title);
 			$content.append($container);
-			$content.append($info);
 
 			var update_timeout = null;
 
@@ -107,21 +271,100 @@
 			$update_plot(plot, $placeholder, col, update_timeout);
 		});
 	});
+
 	</script>
+
 </head>
 <body>
 	<div id="cover">
 		<div id="header">
-			<h2>Raspberry Pi Weather Demo</h2>
+			<h2>Scherer8 Wetter</h2>
+			<h3>scherer8-wetter.olsr
+			(<a href="#about_weather_station" class="about_weather_station_open bth bth-success">about</a>)</h3>
 		</div>
 	</div>
 
+	<div id="current">
+	</div>
+
 	<div id="content">
+
 	</div>
 
 	<div id="footer">
-		<a href="http://www.raspberrypi.org/">Raspberry Pi Foundation</a>
+		<!-- <a href="http://www.raspberrypi.org/">Raspberry Pi Foundation</a> -->
 		<a href="csv.php">Dump entire database to CSV</a>
+                <br><br>On 2019-10-07 there was a power failure and a large part of the database was corrupt.<br>Only the data from 2017-12-11 until 2018-08-18 could be rescued.<br>Download the mysqldump file <a href="database-until-2018-08.sql.gz">here</a>(1.7MB) and the entire old database (before Feb 4 2024) can be downloaded <a href="oldweatherdata.sql.gz">here</a>(9.3MB)
+	</div>
+	
+	<div id="about_weather_station" class="about">
+		<h4>The Raspberry Pi Weather Station</h4>
+		<p>The <a href="https://github.com/raspberrypilearning/sensing-the-weather" target="_blank">Raspberry Pi Weather Station</a> kit is a HAT for the Raspberry Pi. The station is installed on the roof of the Scherer8 <a href="https://wiki.freifunk.net/Berlin:Standorte:Scherer8" target="_blank">(Freifunk Wiki)</a>.  It is important to note that since the Scherer8 uses coal to heat, the air directly above the roof is warm and very full of pollutants in the winter.  Also, the roof is covered in tar paper which again makes the air above the roof warm in the summer.</p>
+		<p>The weather station is reachable on the Freifunk Backbone at <a href="http://scherer8-wetter.olsr" target="_blank">http://scherer8-wetter.olsr</a> and <a href="http://scherer8-wetter-ipv6.olsr" target="_blank">http://scherer8-wetter-ipv6.olsr</a>.</p>
+		<p>The graphics are panable (click and drag) and zoomable (scroll wheel), so have fun.</p> 
+		<p>The software used for the weather station is borrowed heavily from <a href="https://github.com/raspberrypilearning/sensing-the-weather" target="_blank">weather-station</a> and the web interface is borrowed heavily from <a href="https://github.com/RaspberryPiFoundation/weather-station-www" target="_blank">weather-station-www</a> which in turn uses <a href="https://github.com/flot/flot" target="_blank">flot</a> and modified to use <a href="https://github.com/vast-engineering/jquery-popup-overlay" target="_blank">jquery-popup-overlay</a>.</p>
+		<p>The rooftop rainbow picture is an actual picture from the Scherer8 taken on the 5th of July 2016 and is covered under the Creative Commons license.  The favicon is from <a href="http://www.favicon.cc/?action=icon&file_id=51550" target="_blank">favicon.cc</a> and covered under the Creative Commons license.</p>
+	</div>
+
+	<div id="about_htu21d" class="about">
+		<h4>The HTU21D Humidity and Temperature Sensor</h4>
+		<p>The HTU21D Relative Humidity and Temperature Sensor provides calibrated, linearized signals at a low power.  According to the documentation, the accuracy is ±2% within the range of 5% to 95% RH and ±1°C within the range of -30°C to 90°C.</p>
+		<p>Unfortunately the temperature reading are very inaccurate.  There are plenty of <a href="https://www.raspberrypi.org/forums/viewtopic.php?t=194575" target="_blank">forum</a> <a href="https://www.raspberrypi.org/forums/viewtopic.php?t=178920" target="_blank">posts</a> <a href="https://www.raspberrypi.org/forums/viewtopic.php?p=971836" target="_blank">discussing</a> this issue.  Basically the theory is that since the sensor is on the same board as the TGS2600 Air Quality Sensor (which has a built in heater), the values are skewed.  For this reason the temperature readings from the HTU21D are not used.</p>
+		<p><a href="http://www.te.com/commerce/DocumentDelivery/DDEController?Action=showdoc&DocId=Data+Sheet%7FHPC199_6%7FA6%7Fpdf%7FEnglish%7FENG_DS_HPC199_6_A6.pdf%7FCAT-HSC0004" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-7/lesson.md" target="_blank">Raspberry Pi</a> learning resource</p>
+	</div>
+
+	<div id="about_ds18b20" class="about">
+		<h4>The DS18B20 Temperature Sensor</h4>
+		<p>The DS18B20 Temperature "1-wire" Sensor has an operating  range of -55°C to 125°C.  There are two versions of the sensor, one is the size of a transistor and the other is a waterproof version on the end of a cable.  The waterproof version is the type installed at this weather station.</p>
+		<p>The sensor is installed approximately 1.5 meters over the roof.  It is also mostly sun protected, and better sun protection is planned. This sensor from the Raspberry Pi weather station was origionally planned to be burried underground to measure the ground temperature.</p>
+		<p><a href="http://www.circuitbasics.com/wp-content/uploads/2016/03/DS18B20-Datasheet.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-5/lesson.md" target="_blank">Raspberry Pi</a> learning resource</p>
+	</div>
+
+	<div id="about_tgs2600" class="about">
+		<h4>The TGS2600 Air Quality Sensor</h4>
+		<p>The TGS2600 Air Quality Sensor uses a metal oxide semiconductor layer of an alumina sustrate to detect low concentrations of gaseous air contaminants such as hydrogen, carbon monoxide, methange and iso-butane.</p>
+		<p>Since the weather station is located on the roof of a building which heats with coal, naturally the air quality during the winter months is full of comtaminants.  It will be interesting to compare the values between winter and summer to see the full impact of heating with coal.</p>
+		<p>The fact that this sensor has a build-in heater, it seems to skew the readings of the nearby HTU21D Humidity and Temperature Sensor.</p>
+		<p>An excellent description about how this sensor works can be found <a href="https://pi.gate.ac.uk/posts/2014/02/25/airpisensors/" target="_blank">here</a>. Scroll down to description of the TGS2600.</p>
+		<p><a href="http://www.figarosensor.com/products/2600pdf.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-8/lesson.md" target"_blank">Raspberry Pi</a> learning resource</p>
+	</div>
+
+	<div id="about_bmp085" class="about">
+		<h4>The BMP085 Air Pressure Sensor</h4>
+		<p>The BMP085 Air Pressure Sensor can sense the local air pressure from 200 hPa to 1100 hPa with an accuracy of 2.5 hPa. The recorded values read from the sensor are adjusted with the altitude above sea level of the sensor to report the pressure as if it were a sea level.</p>
+		<p>The BMP085 can also measure the temperature, but this reading is not currently used by the weather station.</p>
+		<p><a href="https://www.sparkfun.com/datasheets/Components/General/BST-BMP085-DS000-05.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-9/lesson.md" target="_blank">Raspberry Pi</a> learning resource</p>
+	</div>
+
+	<div id="about_n76nf" class="about">
+		<h4>The Malpin N76NF Anemometer</h4>
+		<p>The Malpin N76NF Anemometer is a typical looking spinning device with three cups to catch the wind and make it rotate.  For each complete rotation of the anemometer two interrupt signals are triggered.  The anemometer has a radius of 9cm.  With this information it is simple to calculate the speed in which the anemometer is turning.</p>
+		<p>The weather station measures the average wind speed over each 5 minute measurement interval.  Additionally the weather station records the fastest 1 second measurement during the 5 minute measurement interval as the wind gust speed.</p>
+		<p><a href="https://www.argentdata.com/files/80422_datasheet.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://www.maplin.co.uk/p/maplin-replacement-anemometer-for-n25fr-n76nf" target="_blank">website</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-2/lesson.md" /target="_blank">Raspberry Pi</a> learning resource</p>
+	</div>
+
+	<div id="about_n81nf" class="about">
+		<h4>The Malpin N81NF Wind Vane</h4>
+		<p>The Malping N81NF Wind Vane uses reed switches and magnets to provide variable resistance with respect to the different directions the wind is blowing.</p>
+		<p>The weather station makes a 10 second sample of the wind direction during each 5 minute measurement interval.  It is important to note that the average is calculated using radians instead of degrees.  Look <a href="http://en.wikipedia.org/wiki/Directional_statistics" target="_blank">here</a> for an explanation.</p>
+		<p><a href="https://www.argentdata.com/files/80422_datasheet.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://www.maplin.co.uk/p/maplin-replacement-wind-direction-sensor-for-n96fyn96gy-n81nf" target="_blank">website</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-4/lesson.md" target="_blnak">Raspberry Pi</a> learning resource</p>
+
+	</div>
+
+	<div id="about_n77nf" class="about">
+		<h4>The Malpin N77NF Rain Gague</h4>
+		<p>The Malpin N77NF Rain Gague registers in interrupt each time one of its two buckets fill with enough water to make it tip.  Each tip of a bucket represents precipitation of 0.2792 mm/m².</p>
+		<p><a href="https://www.argentdata.com/files/80422_datasheet.pdf" target="_blank">datasheet(pdf)</a></p>
+		<p><a href="https://www.maplin.co.uk/p/maplin-replacement-rain-gauge-for-n25frn96fyn96gy-n77nf" target="_blank">website</a></p>
+		<p><a href="https://github.com/raspberrypilearning/sensing-the-weather/blob/master/lesson-1/lesson.md" target="_blank">Raspberry Pi</a> learning resource</p>
 	</div>
 
 </body>
